@@ -9,10 +9,15 @@ It solves two problems with running `aplaymidi` by hand on a 3" screen:
   big, tappable rows instead of requiring you to know filenames.
 - **Clean stop** — killing `aplaymidi` mid-file leaves the MIDI device
   holding a note forever. Stop (and Play, when switching tracks) now
-  also plays a tiny generated "panic" MIDI file — All Sound Off / All
-  Notes Off / Reset Controllers on all 16 channels — through the same
-  port, so the device always goes silent immediately. See
-  [panic.py](panic.py).
+  also plays a generated "panic" MIDI file through the same port: All
+  Sound Off / All Notes Off / Reset Controllers on all 16 channels
+  first (instant), followed by an explicit Note Off for all 128 notes
+  on all 16 channels as a guaranteed fallback, since Note Off — unlike
+  those controller messages — is mandatory in the MIDI spec and every
+  device honors it. That full sweep takes ~2-3 seconds to transmit
+  over a real MIDI cable, so Stop isn't instant, but it reliably
+  silences the device even on hardware that ignores the optional
+  controller messages. See [panic.py](panic.py).
 
 ## Requirements (on the Pi)
 
@@ -38,12 +43,18 @@ No pip packages are needed — everything else is Python standard library.
 
 | Action              | Touch                  | Keyboard         |
 |---------------------|-------------------------|-------------------|
-| Select a file        | Tap the row              | Up / Down          |
-| Play                | Tap **Play** / double-tap row | Enter or Space |
-| Stop (clean, no stuck notes) | Tap **Stop**    | S                 |
+| Move the highlighted file | Tap a row (selects it directly) | Up / Down |
+| Play the highlighted file | Tap **Play** / double-tap row | Enter or Space |
+| Stop (clean, no stuck notes, ~2-3s) | Tap **Stop** | S |
 | Rescan folder        | Tap **Refresh**          | —                 |
 | Toggle fullscreen    | —                        | Escape            |
 | Quit (stops playback first) | Tap **Exit**      | Q                 |
+
+There's no separate step to "focus" the Play/Stop buttons from the
+keyboard — Enter/Space/S act directly on whatever row is currently
+highlighted in the list, bypassing the buttons entirely. Up/Down only
+work while the app window has keyboard focus, which it now claims for
+itself on launch.
 
 ### Config (environment variables)
 

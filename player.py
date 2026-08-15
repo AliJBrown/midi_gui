@@ -61,12 +61,15 @@ class MidiPlayer:
             self._notify(False, None)
 
     def _send_panic(self):
+        # The panic file's full note-off sweep takes ~2s to transmit over a
+        # real 31250-baud MIDI cable; give it plenty of room to finish
+        # rather than getting cut off before it reaches the stuck note.
         try:
             subprocess.run(
                 ["aplaymidi", f"--port={self.port}", str(self.panic_file)],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=2.0,
+                timeout=6.0,
             )
         except Exception:
             pass

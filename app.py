@@ -3,10 +3,13 @@
 
 Controls:
   Touch:    tap a file to select it, tap Play / Stop / Refresh / Exit
-  Keyboard: Up/Down move selection, Enter or Space plays, S stops,
-            Escape toggles fullscreen, Q (or the Exit button) quits
+  Keyboard: Up/Down move the highlighted file, Enter or Space plays
+            *whatever is currently highlighted* (no need to click the
+            Play button itself), S stops, Escape toggles fullscreen,
+            Q (or the Exit button) quits
 """
 
+import signal
 import tkinter as tk
 from tkinter import font as tkfont
 
@@ -48,6 +51,19 @@ class MidiGuiApp:
         self.root.bind("Q", lambda e: self._quit())
         self.root.protocol("WM_DELETE_WINDOW", self._quit)
 
+        # Key bindings on root only fire while the window actually holds
+        # X keyboard focus, which isn't guaranteed on a fullscreen kiosk
+        # launch (especially with no window manager, or one that doesn't
+        # focus new windows automatically) -- claim it explicitly.
+        self.root.focus_force()
+        self.root.after(200, self.root.focus_force)
+
+        # Catch external termination (e.g. `pkill -f app.py`, or systemd
+        # stopping the service) and still silence the device instead of
+        # leaving a note stuck, same as a normal Exit.
+        signal.signal(signal.SIGTERM, self._handle_kill_signal)
+        signal.signal(signal.SIGINT, self._handle_kill_signal)
+
     def _build_ui(self):
         self.status_var = tk.StringVar(value="Stopped")
         status = tk.Label(
@@ -79,6 +95,15 @@ class MidiGuiApp:
         scrollbar.config(command=self.listbox.yview)
         self.listbox.bind("<Double-Button-1>", lambda e: self._play_selected())
 
+        # Listbox's built-in drag behavior (click, then move) auto-scrolls
+        # horizontally once the pointer nears/passes the widget's edge --
+        # on a touchscreen even a stationary tap can register as a small
+        # drag, which is what causes an unwanted scroll-to-the-right.
+        # Tap-to-select doesn't need drag at all, so just disable it.
+        self.listbox.bind("<B1-Motion>", lambda e: "break")
+        self.listbox.bind("<Button-2>", lambda e: "break")
+        self.listbox.bind("<B2-Motion>", lambda e: "break")
+
         btn_opts = dict(font=self.button_font, height=2, bd=0, highlightthickness=0)
         self.play_btn = tk.Button(button_bar, text="Play", bg="#2f8f4e", fg="white",
                                    command=self._play_selected, **btn_opts)
@@ -104,10 +129,28 @@ class MidiGuiApp:
             self.listbox.insert(tk.END, f"  (no MIDI files found in {MIDI_DIR})")
             self.listbox.itemconfig(0, fg="#888888")
         else:
+            avail_px = self._available_list_px()
             for f in files:
-                self.listbox.insert(tk.END, "  " + f.stem)
+                self.listbox.insert(tk.END, "  " + self._truncate(f.stem, avail_px))
             self.listbox.selection_set(0)
             self.listbox.activate(0)
+
+    def _available_list_px(self):
+        # Keep every row narrower than the widget so there's never
+        # anything to scroll into horizontally.
+        self.root.update_idletasks()
+        width = self.listbox.winfo_width()
+        if width <= 1:
+            width = self.root.winfo_screenwidth() - 40
+        return max(width - 20, 60)
+
+    def _truncate(self, text, max_px):
+        if self.list_font.measure(text) <= max_px:
+            return text
+        ellipsis = "…"
+        while text and self.list_font.measure(text + ellipsis) > max_px:
+            text = text[:-1]
+        return text + ellipsis
 
     def _selected_path(self):
         if not self.files:
@@ -157,6 +200,9 @@ class MidiGuiApp:
     def _quit(self):
         self.player.stop()
         self.root.destroy()
+
+    def _handle_kill_signal(self, signum, frame):
+        self._quit()
 
 
 def main():

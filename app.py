@@ -5,8 +5,7 @@ Controls:
   Touch:    tap a file to select it, tap Play / Stop / Refresh / Exit
   Keyboard: Up/Down move the highlighted file, Enter or Space plays
             *whatever is currently highlighted* (no need to click the
-            Play button itself), S stops, Escape toggles fullscreen,
-            Q (or the Exit button) quits
+            Play button itself), S stops, Q (or the Exit button) quits
 """
 
 import signal
@@ -26,7 +25,19 @@ class MidiGuiApp:
         self.root.title("MIDI Player")
         self.root.configure(bg="black")
 
+        # Bypass the window manager entirely instead of relying on its
+        # "-fullscreen" support: some lightweight WMs (e.g. openbox on
+        # Raspberry Pi OS) reserve space for the panel/taskbar via struts
+        # and will resize even a "fullscreen" window once the panel
+        # finishes loading, which is what was leaving a strip of desktop
+        # visible. overrideredirect makes this window unmanaged, so no
+        # panel or desktop can ever push it around; geometry is set to
+        # the exact screen size ourselves.
+        screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
+        self.root.overrideredirect(True)
+        self.root.geometry(f"{screen_w}x{screen_h}+0+0")
+
         base_size = max(12, min(28, screen_h // 14))
         self.list_font = tkfont.Font(family="Helvetica", size=base_size)
         self.button_font = tkfont.Font(family="Helvetica", size=base_size, weight="bold")
@@ -39,9 +50,6 @@ class MidiGuiApp:
         self._build_ui()
         self._refresh_files()
 
-        self._fullscreen_wanted = True
-        self._apply_fullscreen()
-        self.root.bind("<Escape>", lambda e: self._toggle_fullscreen())
         self.root.bind("<Up>", self._move_up)
         self.root.bind("<Down>", self._move_down)
         self.root.bind("<Return>", lambda e: self._play_selected())
@@ -58,13 +66,7 @@ class MidiGuiApp:
         # focus new windows automatically) -- claim it explicitly.
         self.root.focus_force()
         self.root.after(200, self.root.focus_force)
-
-        # On autostart, this launches while the window manager may still
-        # be starting up, and a fullscreen request made before it's ready
-        # can get silently dropped. Reassert it a few times rather than
-        # only once at startup.
-        for delay_ms in (300, 1000, 3000):
-            self.root.after(delay_ms, self._apply_fullscreen)
+        self.root.after(1000, lambda: self.root.geometry(f"{screen_w}x{screen_h}+0+0"))
 
         # Catch external termination (e.g. `pkill -f app.py`, or systemd
         # stopping the service) and still silence the device instead of
@@ -200,14 +202,6 @@ class MidiGuiApp:
             else:
                 self.status_var.set("Stopped")
         self.root.after(0, update)
-
-    def _apply_fullscreen(self):
-        if self._fullscreen_wanted:
-            self.root.attributes("-fullscreen", True)
-
-    def _toggle_fullscreen(self):
-        self._fullscreen_wanted = not self.root.attributes("-fullscreen")
-        self.root.attributes("-fullscreen", self._fullscreen_wanted)
 
     def _quit(self):
         self.player.stop()

@@ -47,8 +47,10 @@ No pip packages are needed — everything else is Python standard library.
 | Play the highlighted file | Tap **Play** / double-tap row | Enter or Space |
 | Stop (clean, no stuck notes, ~2-3s) | Tap **Stop** | S |
 | Rescan folder        | Tap **Refresh**          | —                 |
-| Toggle fullscreen    | —                        | Escape            |
 | Quit (stops playback first) | Tap **Exit**      | Q                 |
+
+There is no window border, titlebar, or taskbar entry by design (see
+"Autostart on boot" below) — Exit / Q is the only way out.
 
 There's no separate step to "focus" the Play/Stop buttons from the
 keyboard — Enter/Space/S act directly on whatever row is currently
@@ -66,11 +68,17 @@ itself on launch.
 
 ## Autostart on boot
 
-Launches fullscreen at desktop login (with a 3s delay before starting,
-and a few fullscreen retries after that, so it doesn't lose the race
-against the window manager still starting up); closing it (Exit button
-or window close) just exits normally — it won't relaunch until the
-next login, so you can get to the rest of the desktop when you need to.
+Launches fullscreen at desktop login (after a 3s delay, so it isn't
+racing the desktop session's own startup). The window is deliberately
+unmanaged by the window manager (`overrideredirect`) and sized to the
+exact screen dimensions itself, rather than relying on the WM's own
+"fullscreen" support — on Raspberry Pi's default desktop (openbox +
+lxpanel), the panel reserves screen space for itself once it finishes
+loading and will resize a WM-fullscreen window to avoid overlapping
+it, which is what caused the taskbar/desktop to become visible around
+the app. Bypassing WM management avoids that entirely. Tapping **Exit**
+(or pressing Q) quits normally — it won't relaunch until the next
+login, so you can get to the rest of the desktop when you need to.
 
 ```
 ./install/install.sh

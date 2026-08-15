@@ -213,10 +213,26 @@ class MidiGuiApp:
         self.root.geometry(f"{self._screen_w}x{self._screen_h}+0+0")
         self.root.lift()
         self.root.focus_force()
+        try:
+            # focus_force() is a request the window manager/panel can
+            # (and evidently does) quietly override later. A grab is not
+            # a request -- it forces every keyboard event on the whole
+            # display to this window until released, regardless of what
+            # the WM thinks should be focused. Fails harmlessly with
+            # TclError until the window is actually mapped/viewable,
+            # which is why this is retried once a second rather than
+            # just once at startup.
+            self.root.grab_set_global()
+        except tk.TclError:
+            pass
         self.root.after(1000, self._keep_on_top)
 
     def _quit(self):
         self._closing = True
+        try:
+            self.root.grab_release()
+        except tk.TclError:
+            pass
         self.player.stop()
         self.root.destroy()
 

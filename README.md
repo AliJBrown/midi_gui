@@ -80,14 +80,23 @@ the app. Bypassing WM management avoids that entirely.
 
 For the same reason, the app re-claims window position, stacking order,
 and keyboard focus once a second for as long as it runs, rather than
-just once at startup — an unmanaged window can otherwise lose keyboard
-focus later (e.g. once the desktop panel finishes its own startup and
-grabs it), and this puts it back within a second instead of leaving
-the keyboard shortcuts dead until the app is restarted.
+just once at startup. A plain focus request (`focus_force`) turned out
+not to be enough on its own — the desktop panel kept winning that fight
+silently, which is why touch worked but the keyboard didn't. So the app
+also takes a **global keyboard grab** (`grab_set_global`), which forces
+every key press on the whole display to this window regardless of what
+the window manager thinks should be focused, and re-establishes it once
+a second in case anything ever breaks it.
 
-Tapping **Exit** (or pressing Q) quits normally — it won't relaunch
-until the next login, so you can get to the rest of the desktop when
-you need to.
+**Trade-off:** while the grab is held, no other window on the Pi can
+receive keyboard input at all — this is intentional for a kiosk app,
+but it does mean a bug that made the app unresponsive would lock out
+the keyboard too. Tapping **Exit** (or pressing Q) releases the grab
+and quits normally — it won't relaunch until the next login, so you
+can get to the rest of the desktop when you need to. If the app is
+ever stuck badly enough that Exit itself doesn't respond, `pkill -f
+app.py` over SSH (or from another TTY, Ctrl+Alt+F2) still works and
+also runs the clean MIDI shutdown first, same as a normal Exit.
 
 ```
 ./install/install.sh

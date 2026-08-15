@@ -24,6 +24,7 @@ class MidiGuiApp:
         self.root = root
         self.root.title("MIDI Player")
         self.root.configure(bg="black")
+        self._closing = False
 
         # Bypass the window manager entirely instead of relying on its
         # "-fullscreen" support: some lightweight WMs (e.g. openbox on
@@ -33,12 +34,13 @@ class MidiGuiApp:
         # visible. overrideredirect makes this window unmanaged, so no
         # panel or desktop can ever push it around; geometry is set to
         # the exact screen size ourselves.
-        screen_w = self.root.winfo_screenwidth()
-        screen_h = self.root.winfo_screenheight()
+        self._screen_w = self.root.winfo_screenwidth()
+        self._screen_h = self.root.winfo_screenheight()
         self.root.overrideredirect(True)
-        self.root.geometry(f"{screen_w}x{screen_h}+0+0")
+        self.root.geometry(f"{self._screen_w}x{self._screen_h}+0+0")
+        self.root.wm_attributes("-topmost", True)
 
-        base_size = max(12, min(28, screen_h // 14))
+        base_size = max(12, min(28, self._screen_h // 14))
         self.list_font = tkfont.Font(family="Helvetica", size=base_size)
         self.button_font = tkfont.Font(family="Helvetica", size=base_size, weight="bold")
         self.status_font = tkfont.Font(family="Helvetica", size=base_size, weight="bold")
@@ -61,12 +63,14 @@ class MidiGuiApp:
         self.root.protocol("WM_DELETE_WINDOW", self._quit)
 
         # Key bindings on root only fire while the window actually holds
-        # X keyboard focus, which isn't guaranteed on a fullscreen kiosk
-        # launch (especially with no window manager, or one that doesn't
-        # focus new windows automatically) -- claim it explicitly.
-        self.root.focus_force()
-        self.root.after(200, self.root.focus_force)
-        self.root.after(1000, lambda: self.root.geometry(f"{screen_w}x{screen_h}+0+0"))
+        # X keyboard focus. A one-time focus_force() isn't enough here:
+        # the desktop panel finishing its own startup (which is also what
+        # was resizing the window before overrideredirect) can steal
+        # focus back afterward, and some window managers are generally
+        # reluctant to leave focus on an unmanaged window. Keep
+        # reclaiming focus/position/stacking indefinitely rather than
+        # gambling on a delay that's "long enough".
+        self._keep_on_top()
 
         # Catch external termination (e.g. `pkill -f app.py`, or systemd
         # stopping the service) and still silence the device instead of
@@ -203,7 +207,16 @@ class MidiGuiApp:
                 self.status_var.set("Stopped")
         self.root.after(0, update)
 
+    def _keep_on_top(self):
+        if self._closing:
+            return
+        self.root.geometry(f"{self._screen_w}x{self._screen_h}+0+0")
+        self.root.lift()
+        self.root.focus_force()
+        self.root.after(1000, self._keep_on_top)
+
     def _quit(self):
+        self._closing = True
         self.player.stop()
         self.root.destroy()
 

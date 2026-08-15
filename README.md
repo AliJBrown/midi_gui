@@ -76,9 +76,18 @@ exact screen dimensions itself, rather than relying on the WM's own
 lxpanel), the panel reserves screen space for itself once it finishes
 loading and will resize a WM-fullscreen window to avoid overlapping
 it, which is what caused the taskbar/desktop to become visible around
-the app. Bypassing WM management avoids that entirely. Tapping **Exit**
-(or pressing Q) quits normally — it won't relaunch until the next
-login, so you can get to the rest of the desktop when you need to.
+the app. Bypassing WM management avoids that entirely.
+
+For the same reason, the app re-claims window position, stacking order,
+and keyboard focus once a second for as long as it runs, rather than
+just once at startup — an unmanaged window can otherwise lose keyboard
+focus later (e.g. once the desktop panel finishes its own startup and
+grabs it), and this puts it back within a second instead of leaving
+the keyboard shortcuts dead until the app is restarted.
+
+Tapping **Exit** (or pressing Q) quits normally — it won't relaunch
+until the next login, so you can get to the rest of the desktop when
+you need to.
 
 ```
 ./install/install.sh

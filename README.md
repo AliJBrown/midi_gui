@@ -66,9 +66,11 @@ itself on launch.
 
 ## Autostart on boot
 
-Launches fullscreen at desktop login; closing it (Exit button or window
-close) just exits normally — it won't relaunch until the next login, so
-you can get to the rest of the desktop when you need to.
+Launches fullscreen at desktop login (with a 3s delay before starting,
+and a few fullscreen retries after that, so it doesn't lose the race
+against the window manager still starting up); closing it (Exit button
+or window close) just exits normally — it won't relaunch until the
+next login, so you can get to the rest of the desktop when you need to.
 
 ```
 ./install/install.sh

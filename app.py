@@ -39,7 +39,8 @@ class MidiGuiApp:
         self._build_ui()
         self._refresh_files()
 
-        self.root.attributes("-fullscreen", True)
+        self._fullscreen_wanted = True
+        self._apply_fullscreen()
         self.root.bind("<Escape>", lambda e: self._toggle_fullscreen())
         self.root.bind("<Up>", self._move_up)
         self.root.bind("<Down>", self._move_down)
@@ -57,6 +58,13 @@ class MidiGuiApp:
         # focus new windows automatically) -- claim it explicitly.
         self.root.focus_force()
         self.root.after(200, self.root.focus_force)
+
+        # On autostart, this launches while the window manager may still
+        # be starting up, and a fullscreen request made before it's ready
+        # can get silently dropped. Reassert it a few times rather than
+        # only once at startup.
+        for delay_ms in (300, 1000, 3000):
+            self.root.after(delay_ms, self._apply_fullscreen)
 
         # Catch external termination (e.g. `pkill -f app.py`, or systemd
         # stopping the service) and still silence the device instead of
@@ -193,9 +201,13 @@ class MidiGuiApp:
                 self.status_var.set("Stopped")
         self.root.after(0, update)
 
+    def _apply_fullscreen(self):
+        if self._fullscreen_wanted:
+            self.root.attributes("-fullscreen", True)
+
     def _toggle_fullscreen(self):
-        is_full = self.root.attributes("-fullscreen")
-        self.root.attributes("-fullscreen", not is_full)
+        self._fullscreen_wanted = not self.root.attributes("-fullscreen")
+        self.root.attributes("-fullscreen", self._fullscreen_wanted)
 
     def _quit(self):
         self.player.stop()

@@ -56,6 +56,13 @@ class MidiGuiApp:
         )
         status.pack(side="top", fill="x")
 
+        # Pack the button bar before the expanding file list: in Tkinter's
+        # pack manager, a widget packed with expand=True claims all
+        # remaining space at the moment it's packed, so anything packed
+        # after it gets squeezed to zero size.
+        button_bar = tk.Frame(self.root, bg="black")
+        button_bar.pack(side="bottom", fill="x")
+
         list_frame = tk.Frame(self.root, bg="black")
         list_frame.pack(side="top", fill="both", expand=True)
 
@@ -71,9 +78,6 @@ class MidiGuiApp:
         self.listbox.pack(side="left", fill="both", expand=True)
         scrollbar.config(command=self.listbox.yview)
         self.listbox.bind("<Double-Button-1>", lambda e: self._play_selected())
-
-        button_bar = tk.Frame(self.root, bg="black")
-        button_bar.pack(side="bottom", fill="x")
 
         btn_opts = dict(font=self.button_font, height=2, bd=0, highlightthickness=0)
         self.play_btn = tk.Button(button_bar, text="Play", bg="#2f8f4e", fg="white",
